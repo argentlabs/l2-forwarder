@@ -20,8 +20,7 @@ contract Forwarder {
             IERC20 tokenContract = IERC20(_token);
             uint256 balance = tokenContract.balanceOf(address(this));
             tokenContract.approve(address(zkSync), balance);
-            // zkSync.depositERC20(tokenContract, uint104(balance), _wallet);
-            zkSync.depositERC20(tokenContract, uint104(0), _wallet);
+            zkSync.depositERC20(tokenContract, uint104(balance), _wallet);
         }
         selfdestruct(_wallet);
     }
