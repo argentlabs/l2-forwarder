@@ -1,0 +1,24 @@
+{
+  "name": "l2-forwarder",
+  "version": "1.0.0",
+  "description": "L2 Forwarder",
+  "scripts": {
+    "compile": "npx truffle compile",
+    "deploy:rinkeby": "npx truffle migrate --network rinkeby",
+    "deploy:ropsten": "npx truffle migrate --network ropsten",
+    "deploy:kovan": "npx truffle migrate --network kovan",
+    "ganache": "npx ganache-cli --gasLimit=10000000 -e 10000 -d ganache-cli 1337",
+    "test": "npx truffle test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/argentlabs/l2-forwarder.git"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "^3.3.0",
+    "@truffle/hdwallet-provider": "^1.2.0",
+    "dotenv": "^8.2.0",
+    "truffle": "^5.1.63",
+    "zksync-root": "github:matter-labs/zksync#contracts-4.3"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "contracts": {
+    "rinkeby": {
+      "zkSync": "0x82F67958A5474e40E1485742d648C0b0686b6e5D"
+    },
+    "ropsten": {
+      "zkSync": "0x17dE8874259c59cd9f7E6ec86b6813Bda661A57c"
+    },
+    "mainnet": {
+      "zkSync": "0xabea9132b05a70803a4e85094fd0e1800777fbef"
+    }
+  }
+}
