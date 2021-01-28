@@ -23,6 +23,11 @@ contract ForwarderFactory {
 
     function forward(address payable _wallet, address _token) external {
         Forwarder forwarder = _deployForwarder(_wallet);
+        forwarder.forward(_wallet, _token);
+    }
+
+    function forwardAndDestruct(address payable _wallet, address _token) external {
+        Forwarder forwarder = _deployForwarder(_wallet);
         forwarder.forwardAndDestruct(_wallet, _token);
     }
 

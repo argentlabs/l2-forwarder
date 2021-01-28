@@ -13,6 +13,11 @@ contract Forwarder {
     }
 
     function forwardAndDestruct(address payable _wallet, address _token) external {
+        forward(_wallet, _token);
+        selfdestruct(_wallet);
+    }
+
+    function forward(address payable _wallet, address _token) public {
         if (_token == ETH_TOKEN) {
             uint256 balance = address(this).balance;
             zkSync.depositETH{value: balance}(_wallet);
@@ -22,6 +27,7 @@ contract Forwarder {
             tokenContract.approve(address(zkSync), balance);
             zkSync.depositERC20(tokenContract, uint104(balance), _wallet);
         }
-        selfdestruct(_wallet);
     }
+
+    receive() external payable {}
 }

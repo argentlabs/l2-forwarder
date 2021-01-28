@@ -1,4 +1,5 @@
 const ForwarderFactory = artifacts.require("ForwarderFactory");
+const Forwarder = artifacts.require("Forwarder");
 const ZkSync = artifacts.require("ZkSyncMock");
 const ZkGov = artifacts.require("GovernanceMock");
 const ERC20 = artifacts.require("TestERC20");
@@ -15,6 +16,11 @@ contract("ForwarderFactory", (accounts) => {
   let zk;
   let erc20;
   let factory;
+  const wallet = accounts[0];
+  const wallet2 = accounts[1];
+  const wallet3 = accounts[2];
+  const wallet4 = accounts[3];
+  const wallet5 = accounts[4];
 
   before(async () => {
     zk = await ZkSync.new();
@@ -31,39 +37,92 @@ contract("ForwarderFactory", (accounts) => {
     await zk.initialize(zkParams);
   });
 
-  it("deposits ETH", async () => {
-    const wallet = accounts[0];
+  async function createAndForwardEth({ destroy, wallet }) {
     const fwd = await factory.getForwarder(wallet);
     const value = web3.utils.toWei("0.1");
-    await web3.eth.sendTransaction({ to: fwd, value, from: wallet });
-
+    await web3.eth.sendTransaction({ to: fwd, value, from: accounts[0] });
     const zkBalanceBefore = new BN(await web3.eth.getBalance(zk.address));
     const fwdBalanceBefore = new BN(await web3.eth.getBalance(fwd));
-    const txR = await factory.forward(wallet, ETH_TOKEN);
+    const txR = await factory[destroy ? "forwardAndDestruct" : "forward"](
+      wallet,
+      ETH_TOKEN
+    );
     const zkBalanceAfter = new BN(await web3.eth.getBalance(zk.address));
     const fwdBalanceAfter = new BN(await web3.eth.getBalance(fwd));
-
+    console.log(
+      `deposits ETH (create + fwd${destroy ? " + destruct" : ""}) gasUsed: ${
+        txR.receipt.gasUsed
+      }`
+    );
     expect(zkBalanceAfter.sub(zkBalanceBefore)).to.be.eq.BN(value);
     expect(fwdBalanceBefore.sub(fwdBalanceAfter)).to.be.eq.BN(value);
+  }
 
-    console.log({ gasUsed: txR.receipt.gasUsed });
+  async function forwardEth({ wallet }) {
+    const value = web3.utils.toWei("0.1");
+    const fwd = await factory.getForwarder(wallet);
+    await web3.eth.sendTransaction({ to: fwd, value, from: accounts[1] });
+    const zkBalanceBefore = new BN(await web3.eth.getBalance(zk.address));
+    const fwdBalanceBefore = new BN(await web3.eth.getBalance(fwd));
+    const txR = await (await Forwarder.at(fwd)).forward(wallet, ETH_TOKEN);
+    const zkBalanceAfter = new BN(await web3.eth.getBalance(zk.address));
+    const fwdBalanceAfter = new BN(await web3.eth.getBalance(fwd));
+    expect(zkBalanceAfter.sub(zkBalanceBefore)).to.be.eq.BN(value);
+    expect(fwdBalanceBefore.sub(fwdBalanceAfter)).to.be.eq.BN(value);
+    console.log(`deposits ETH (fwd) gasUsed: ${txR.receipt.gasUsed}`);
+  }
+
+  it("deposits ETH (fwd)", async () => {
+    await createAndForwardEth({ destroy: false, wallet });
+    await forwardEth({ wallet });
   });
 
-  it("deposits ERC20", async () => {
-    const wallet = accounts[0];
+  it("deposits ETH (fwd+destroy)", async () => {
+    await createAndForwardEth({ destroy: true, wallet: wallet2 });
+  });
+
+  async function createAndForwardErc20({ destroy, wallet }) {
     const fwd = await factory.getForwarder(wallet);
     const amount = web3.utils.toWei("100");
     await erc20.mint(fwd, amount);
-
     const fwdBalanceBefore = await erc20.balanceOf(fwd);
     const zkBalanceBefore = await erc20.balanceOf(zk.address);
-    const txR = await factory.forward(wallet, erc20.address);
+    const txR = await factory[destroy ? "forwardAndDestruct" : "forward"](
+      wallet,
+      erc20.address
+    );
     const fwdBalanceAfter = await erc20.balanceOf(fwd);
     const zkBalanceAfter = await erc20.balanceOf(zk.address);
-
+    console.log(
+      `deposits ERC20 (create + fwd${destroy ? " + destruct" : ""}) gasUsed: ${
+        txR.receipt.gasUsed
+      }`
+    );
     expect(zkBalanceAfter.sub(zkBalanceBefore)).to.be.eq.BN(amount);
     expect(fwdBalanceBefore.sub(fwdBalanceAfter)).to.be.eq.BN(amount);
+  }
 
-    console.log({ gasUsed: txR.receipt.gasUsed });
+  async function forwardErc20({ wallet }) {
+    const fwd = await factory.getForwarder(wallet);
+    const amount = web3.utils.toWei("100");
+    await erc20.mint(fwd, amount);
+    const fwdBalanceBefore = await erc20.balanceOf(fwd);
+    const zkBalanceBefore = await erc20.balanceOf(zk.address);
+    const txR = await (await Forwarder.at(fwd)).forward(wallet, erc20.address);
+    const fwdBalanceAfter = await erc20.balanceOf(fwd);
+    const zkBalanceAfter = await erc20.balanceOf(zk.address);
+    expect(zkBalanceAfter.sub(zkBalanceBefore)).to.be.eq.BN(amount);
+    expect(fwdBalanceBefore.sub(fwdBalanceAfter)).to.be.eq.BN(amount);
+    console.log(`deposits ERC20 (fwd) gasUsed: ${txR.receipt.gasUsed}`);
+  }
+
+  it("deposits ERC20 (fwd)", async () => {
+    await createAndForwardErc20({ destroy: false, wallet: wallet3 });
+    await forwardErc20({ wallet: wallet3 });
+    await createAndForwardErc20({ destroy: false, wallet: wallet4 });
+  });
+
+  it("deposits ERC20 (fwd+destroy)", async () => {
+    await createAndForwardErc20({ destroy: true, wallet: wallet5 });
   });
 });
