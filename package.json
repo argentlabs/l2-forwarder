@@ -4,6 +4,7 @@
   "description": "L2 Forwarder",
   "scripts": {
     "compile": "npx truffle compile",
+    "coverage": "npx truffle run coverage",
     "deploy:rinkeby": "npx truffle migrate --network rinkeby",
     "deploy:ropsten": "npx truffle migrate --network ropsten",
     "deploy:kovan": "npx truffle migrate --network kovan",
@@ -20,6 +21,7 @@
     "bn-chai": "^1.0.1",
     "chai": "^4.2.0",
     "dotenv": "^8.2.0",
+    "solidity-coverage": "^0.7.14",
     "truffle": "^5.1.63",
     "zksync-root": "github:matter-labs/zksync#contracts-4.3"
   }
