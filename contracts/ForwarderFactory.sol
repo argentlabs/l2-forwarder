@@ -15,24 +15,44 @@ contract ForwarderFactory {
         initCode = _getInitCode(implementation);
     }
 
-    function getForwarder(address _wallet) public view returns (address forwarder) {
+    function getForwarder(address _wallet) public view returns (address payable forwarder) {
         bytes32 salt = keccak256(abi.encodePacked(_wallet));
         bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(abi.encodePacked(initCode))));
         forwarder = address(uint160(uint256(hash)));
     }
 
-    function forward(address payable _wallet, address _token) external {
+    function deployAndForward(address payable _wallet, address _token) external {
         Forwarder forwarder = _deployForwarder(_wallet);
         forwarder.forward(_wallet, _token);
     }
 
-    function forwardAndDestruct(address payable _wallet, address _token) external {
+    function forward(address payable _wallet, address _token) external {
+        Forwarder forwarder = Forwarder(getForwarder(_wallet));
+        forwarder.forward(_wallet, _token);
+    }
+
+    function deployForwardAndDestruct(address payable _wallet, address _token) external {
         Forwarder forwarder = _deployForwarder(_wallet);
         forwarder.forwardAndDestruct(_wallet, _token);
     }
 
+    function recoverToken(address payable _wallet, address _token, bool _destructForwarder) external {
+        Forwarder forwarder = Forwarder(getForwarder(_wallet));
+        if(!isContract(address(forwarder))) {
+            forwarder = _deployForwarder(_wallet);
+        } else {
+            require(_destructForwarder == false, "cannot destruct existing forwarder");
+        }
+        bytes4 method = _destructForwarder ? forwarder.forwardAndDestruct.selector : forwarder.forward.selector;
+        // attempt forwarding
+        (bool success,) = address(forwarder).call(abi.encodeWithSelector(method, _wallet, _token));
+        // only recover token to wallet if forwarding failed (e.g. unsupported token, token deposit paused, transfer failed)
+        if(!success) {
+            forwarder.recoverToken(_wallet, _token);
+        }
+    }
+
     function _deployForwarder(address _wallet) internal returns (Forwarder forwarder) {
-        
         // load the init code to memory
         bytes memory mInitCode = initCode;
 
@@ -53,5 +73,14 @@ contract ForwarderFactory {
             mstore(add(code, add(0x20,0x14)), targetBytes)
             mstore(add(code, add(0x20,0x28)), 0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000)
         }
+    }
+
+    function isContract(address _addr) internal view returns (bool) {
+        uint32 size;
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            size := extcodesize(_addr)
+        }
+        return (size > 0);
     }
 }
