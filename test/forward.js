@@ -46,26 +46,54 @@ contract("ForwarderFactory", (accounts) => {
     wallet = getRandomAddress();
   });
 
-  describe("deposit ETH", () => {
-    async function forwardEth({ destroy = false } = {}) {
-      const fwd = await factory.getForwarder(wallet);
-      const code = await web3.eth.getCode(fwd);
-      const value = web3.utils.toWei("0.1");
-      await web3.eth.sendTransaction({ to: fwd, value, from: accounts[0] });
-      const zkBalanceBefore = new BN(await web3.eth.getBalance(zk.address));
-      const fwdBalanceBefore = new BN(await web3.eth.getBalance(fwd));
-      let method;
-      if (destroy) method = "deployForwardAndDestruct";
-      else if (code.length > 2) method = "forward";
-      else method = "deployAndForward";
-      const txR = await factory[method](wallet, ETH_TOKEN);
-      const zkBalanceAfter = new BN(await web3.eth.getBalance(zk.address));
-      const fwdBalanceAfter = new BN(await web3.eth.getBalance(fwd));
-      console.log(`${method} gas:`, txR.receipt.gasUsed);
-      expect(zkBalanceAfter.sub(zkBalanceBefore)).to.be.eq.BN(value);
-      expect(fwdBalanceBefore.sub(fwdBalanceAfter)).to.be.eq.BN(value);
-    }
+  async function forwardEth({ destroy = false } = {}) {
+    const fwd = await factory.getForwarder(wallet);
+    const code = await web3.eth.getCode(fwd);
+    const value = web3.utils.toWei("0.1");
+    await web3.eth.sendTransaction({ to: fwd, value, from: accounts[0] });
+    const zkBalanceBefore = new BN(await web3.eth.getBalance(zk.address));
+    const fwdBalanceBefore = new BN(await web3.eth.getBalance(fwd));
+    let method;
+    if (destroy) method = "deployForwardAndDestruct";
+    else if (code.length > 2) method = "forward";
+    else method = "deployAndForward";
+    const txR = await factory[method](wallet, ETH_TOKEN);
+    const zkBalanceAfter = new BN(await web3.eth.getBalance(zk.address));
+    const fwdBalanceAfter = new BN(await web3.eth.getBalance(fwd));
+    console.log(`${method} gas:`, txR.receipt.gasUsed);
+    expect(zkBalanceAfter.sub(zkBalanceBefore)).to.be.eq.BN(value);
+    expect(fwdBalanceBefore.sub(fwdBalanceAfter)).to.be.eq.BN(value);
+  }
 
+  async function forwardErc20({ destroy = false, recover = false } = {}) {
+    const fwd = await factory.getForwarder(wallet);
+    const code = await web3.eth.getCode(fwd);
+    const amount = web3.utils.toWei("100");
+    await erc20.mint(fwd, amount);
+    const fwdBalanceBefore = await erc20.balanceOf(fwd);
+    const zkBalanceBefore = await erc20.balanceOf(zk.address);
+    const walletBalanceBefore = await erc20.balanceOf(wallet);
+    let method;
+    if (recover) method = "recoverToken";
+    else if (destroy) method = "deployForwardAndDestruct";
+    else if (code.length > 2) method = "forward";
+    else method = "deployAndForward";
+    const params = [wallet, erc20.address].concat(recover ? [destroy] : []);
+    const txR = await factory[method](...params);
+    const fwdBalanceAfter = await erc20.balanceOf(fwd);
+    const zkBalanceAfter = await erc20.balanceOf(zk.address);
+    const walletBalanceAfter = await erc20.balanceOf(wallet);
+    console.log(`${method} gas:`, txR.receipt.gasUsed);
+    const tokenIsPaused = await zkGov.pausedTokens(1);
+    if (!tokenIsPaused) {
+      expect(zkBalanceAfter.sub(zkBalanceBefore)).to.be.eq.BN(amount);
+    } else if (recover) {
+      expect(walletBalanceAfter.sub(walletBalanceBefore)).to.be.eq.BN(amount);
+    }
+    expect(fwdBalanceBefore.sub(fwdBalanceAfter)).to.be.eq.BN(amount);
+  }
+
+  describe("deposit ETH", () => {
     it("deposits ETH (fwd)", async () => {
       // deploy new forwarder and forward ETH
       await forwardEth();
@@ -81,34 +109,6 @@ contract("ForwarderFactory", (accounts) => {
   });
 
   describe("deposit ERC20", () => {
-    async function forwardErc20({ destroy = false, recover = false } = {}) {
-      const fwd = await factory.getForwarder(wallet);
-      const code = await web3.eth.getCode(fwd);
-      const amount = web3.utils.toWei("100");
-      await erc20.mint(fwd, amount);
-      const fwdBalanceBefore = await erc20.balanceOf(fwd);
-      const zkBalanceBefore = await erc20.balanceOf(zk.address);
-      const walletBalanceBefore = await erc20.balanceOf(wallet);
-      let method;
-      if (recover) method = "recoverToken";
-      else if (destroy) method = "deployForwardAndDestruct";
-      else if (code.length > 2) method = "forward";
-      else method = "deployAndForward";
-      const params = [wallet, erc20.address].concat(recover ? [destroy] : []);
-      const txR = await factory[method](...params);
-      const fwdBalanceAfter = await erc20.balanceOf(fwd);
-      const zkBalanceAfter = await erc20.balanceOf(zk.address);
-      const walletBalanceAfter = await erc20.balanceOf(wallet);
-      console.log(`${method} gas:`, txR.receipt.gasUsed);
-      const tokenIsPaused = await zkGov.pausedTokens(1);
-      if (!tokenIsPaused) {
-        expect(zkBalanceAfter.sub(zkBalanceBefore)).to.be.eq.BN(amount);
-      } else if (recover) {
-        expect(walletBalanceAfter.sub(walletBalanceBefore)).to.be.eq.BN(amount);
-      }
-      expect(fwdBalanceBefore.sub(fwdBalanceAfter)).to.be.eq.BN(amount);
-    }
-
     it("deposits ERC20 (fwd)", async () => {
       // first ever call to depositERC20
       await forwardErc20();
@@ -122,24 +122,33 @@ contract("ForwarderFactory", (accounts) => {
       await forwardErc20({ destroy: true });
     });
 
-    it("recovers ERC20 (successful forwarding; no destruction)", async () => {
-      await forwardErc20({ recover: true });
-    });
+    describe("recovers ERC20", () => {
+      it("recovers ERC20 (successful forwarding; no destruction)", async () => {
+        await forwardErc20({ recover: true });
+      });
 
-    it("recovers ERC20 (successful forwarding; destruction)", async () => {
-      await forwardErc20({ destroy: true, recover: true });
-    });
+      it("recovers ERC20 (successful forwarding; destruction)", async () => {
+        await forwardErc20({ destroy: true, recover: true });
+      });
 
-    it("recovers ERC20 (failed forwarding; no destruction)", async () => {
-      await zkGov.setTokenPaused(erc20.address, true);
-      await forwardErc20({ recover: true });
-      await zkGov.setTokenPaused(erc20.address, false);
-    });
+      it("recovers ERC20 (failed forwarding; no destruction)", async () => {
+        await zkGov.setTokenPaused(erc20.address, true);
+        await forwardErc20({ recover: true });
+        await zkGov.setTokenPaused(erc20.address, false);
+      });
 
-    it("recovers ERC20 (failed forwarding; destruction)", async () => {
-      await zkGov.setTokenPaused(erc20.address, true);
-      await forwardErc20({ recover: true, destroy: true });
-      await zkGov.setTokenPaused(erc20.address, false);
+      it("recovers ERC20 (failed forwarding; no destruction; existing forwarder)", async () => {
+        await forwardEth(); // deploy and keep forwarder
+        await zkGov.setTokenPaused(erc20.address, true);
+        await forwardErc20({ recover: true });
+        await zkGov.setTokenPaused(erc20.address, false);
+      });
+
+      it("recovers ERC20 (failed forwarding; destruction)", async () => {
+        await zkGov.setTokenPaused(erc20.address, true);
+        await forwardErc20({ recover: true, destroy: true });
+        await zkGov.setTokenPaused(erc20.address, false);
+      });
     });
   });
 });
