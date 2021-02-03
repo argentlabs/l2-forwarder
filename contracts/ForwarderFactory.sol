@@ -41,12 +41,12 @@ contract ForwarderFactory {
         if(!isContract(address(forwarder))) {
             forwarder = _deployForwarder(_wallet);
         } else {
-            require(_destructForwarder == false, "cannot destruct existing forwarder");
+            require(!_destructForwarder, "cannot destruct existing forwarder");
         }
         bytes4 method = _destructForwarder ? forwarder.forwardAndDestruct.selector : forwarder.forward.selector;
         // attempt forwarding
         (bool success,) = address(forwarder).call(abi.encodeWithSelector(method, _wallet, _token));
-        // only recover token to wallet if forwarding failed (e.g. unsupported token, token deposit paused, transfer failed)
+        // only recover token to wallet if forwarding failed (e.g. unsupported token; token deposit paused; transfer failed)
         if(!success) {
             forwarder.recoverToken(_wallet, _token);
         }

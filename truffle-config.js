@@ -78,5 +78,9 @@ module.exports = {
     },
   },
 
-  plugins: ["solidity-coverage"],
+  plugins: ["solidity-coverage", "truffle-source-verify"],
+
+  api_keys: {
+    etherscan: process.env.ETHERSCAN_KEY,
+  },
 };

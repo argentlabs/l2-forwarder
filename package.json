@@ -20,9 +20,11 @@
     "@truffle/hdwallet-provider": "^1.2.0",
     "bn-chai": "^1.0.1",
     "chai": "^4.2.0",
+    "delay": "^5.0.0",
     "dotenv": "^8.2.0",
     "solidity-coverage": "^0.7.14",
     "truffle": "^5.1.63",
+    "truffle-source-verify": "0.0.5",
     "zksync-root": "github:matter-labs/zksync#contracts-4.3"
   }
 }
