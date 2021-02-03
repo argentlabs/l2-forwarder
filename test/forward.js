@@ -60,7 +60,7 @@ contract("ForwarderFactory", (accounts) => {
     const txR = await factory[method](wallet, ETH_TOKEN);
     const zkBalanceAfter = new BN(await web3.eth.getBalance(zk.address));
     const fwdBalanceAfter = new BN(await web3.eth.getBalance(fwd));
-    console.log(`${method} gas:`, txR.receipt.gasUsed);
+    console.log(`        ${method} gas:`, txR.receipt.gasUsed);
     expect(zkBalanceAfter.sub(zkBalanceBefore)).to.be.eq.BN(value);
     expect(fwdBalanceBefore.sub(fwdBalanceAfter)).to.be.eq.BN(value);
   }
@@ -83,7 +83,7 @@ contract("ForwarderFactory", (accounts) => {
     const fwdBalanceAfter = await erc20.balanceOf(fwd);
     const zkBalanceAfter = await erc20.balanceOf(zk.address);
     const walletBalanceAfter = await erc20.balanceOf(wallet);
-    console.log(`${method} gas:`, txR.receipt.gasUsed);
+    console.log(`        ${method} gas:`, txR.receipt.gasUsed);
     const tokenIsPaused = await zkGov.pausedTokens(1);
     if (!tokenIsPaused) {
       expect(zkBalanceAfter.sub(zkBalanceBefore)).to.be.eq.BN(amount);
@@ -121,34 +121,34 @@ contract("ForwarderFactory", (accounts) => {
     it("deposits ERC20 (fwd+destroy)", async () => {
       await forwardErc20({ destroy: true });
     });
+  });
 
-    describe("recovers ERC20", () => {
-      it("recovers ERC20 (successful forwarding; no destruction)", async () => {
-        await forwardErc20({ recover: true });
-      });
+  describe("recovers ERC20", () => {
+    it("recovers ERC20 (successful forwarding; no destruction)", async () => {
+      await forwardErc20({ recover: true });
+    });
 
-      it("recovers ERC20 (successful forwarding; destruction)", async () => {
-        await forwardErc20({ destroy: true, recover: true });
-      });
+    it("recovers ERC20 (successful forwarding; destruction)", async () => {
+      await forwardErc20({ destroy: true, recover: true });
+    });
 
-      it("recovers ERC20 (failed forwarding; no destruction)", async () => {
-        await zkGov.setTokenPaused(erc20.address, true);
-        await forwardErc20({ recover: true });
-        await zkGov.setTokenPaused(erc20.address, false);
-      });
+    it("recovers ERC20 (failed forwarding; no destruction)", async () => {
+      await zkGov.setTokenPaused(erc20.address, true);
+      await forwardErc20({ recover: true });
+      await zkGov.setTokenPaused(erc20.address, false);
+    });
 
-      it("recovers ERC20 (failed forwarding; no destruction; existing forwarder)", async () => {
-        await forwardEth(); // deploy and keep forwarder
-        await zkGov.setTokenPaused(erc20.address, true);
-        await forwardErc20({ recover: true });
-        await zkGov.setTokenPaused(erc20.address, false);
-      });
+    it("recovers ERC20 (failed forwarding; no destruction; existing forwarder)", async () => {
+      await forwardEth(); // deploy and keep forwarder
+      await zkGov.setTokenPaused(erc20.address, true);
+      await forwardErc20({ recover: true });
+      await zkGov.setTokenPaused(erc20.address, false);
+    });
 
-      it("recovers ERC20 (failed forwarding; destruction)", async () => {
-        await zkGov.setTokenPaused(erc20.address, true);
-        await forwardErc20({ recover: true, destroy: true });
-        await zkGov.setTokenPaused(erc20.address, false);
-      });
+    it("recovers ERC20 (failed forwarding; destruction)", async () => {
+      await zkGov.setTokenPaused(erc20.address, true);
+      await forwardErc20({ recover: true, destroy: true });
+      await zkGov.setTokenPaused(erc20.address, false);
     });
   });
 });
