@@ -1,7 +1,7 @@
 const ForwarderFactory = artifacts.require("ForwarderFactory");
 const config = require("./config.json");
 const delay = require("delay");
-const { verify } = require("./verify");
+const { verify } = require("truffle-source-verify/lib");
 
 module.exports = function (deployer, network) {
   return deployer.then(async () => {
@@ -11,8 +11,7 @@ module.exports = function (deployer, network) {
     if (!networkContracts || !networkContracts.zkSync)
       throw new Error(`Missing zkSync address for ${network}`);
 
-    deployer.deploy(ForwarderFactory, networkContracts.zkSync);
-
+    await deployer.deploy(ForwarderFactory, networkContracts.zkSync);
     await delay(30000);
     await verify(["ForwarderFactory"], network);
   });
