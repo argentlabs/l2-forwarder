@@ -1,8 +1,10 @@
 const ForwarderFactory = artifacts.require("ForwarderFactory");
+const Forwarder = artifacts.require("Forwarder");
 const ZkSync = artifacts.require("ZkSyncMock");
 const ZkGov = artifacts.require("GovernanceMock");
 const ERC20 = artifacts.require("TestERC20");
 
+const truffleAssert = require("truffle-assertions");
 const chai = require("chai");
 const BN = require("bn.js");
 const bnChai = require("bn-chai");
@@ -149,6 +151,32 @@ contract("ForwarderFactory", (accounts) => {
       await zkGov.setTokenPaused(erc20.address, true);
       await forwardErc20({ recover: true, destroy: true });
       await zkGov.setTokenPaused(erc20.address, false);
+    });
+  });
+
+  describe("Reverts", () => {
+    let fwd;
+    beforeEach(async () => {
+      await forwardEth(); // deploy and keep forwarder
+      fwd = await Forwarder.at(await factory.getForwarder(wallet));
+    });
+
+    it("cannot call the forwarder directly", async () => {
+      await Promise.all(
+        ["forward", "forwardAndDestruct", "recoverToken"].map((method) =>
+          truffleAssert.reverts(
+            fwd[method](wallet, erc20.address),
+            "sender should be factory"
+          )
+        )
+      );
+    });
+
+    it("cannot destroy existing forwarder", async () => {
+      await truffleAssert.reverts(
+        forwardErc20({ recover: true, destroy: true }),
+        "cannot destruct existing forwarder"
+      );
     });
   });
 });
