@@ -22,11 +22,21 @@ contract Forwarder {
         _;
     }
 
+     /**
+     * @notice Transfer the token balance to zkSync and destruct the forwarder contract
+     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
+     * @param _token the token to transfer
+     */
     function forwardAndDestruct(address payable _wallet, address _token) external {
         forward(_wallet, _token);
         selfdestruct(_wallet);
     }
 
+    /**
+     * @notice Transfer the token balance to zkSync
+     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
+     * @param _token the token to transfer
+     */
     function forward(address payable _wallet, address _token) public onlyFactory {
         if (_token == ETH_TOKEN) {
             uint256 balance = address(this).balance;
@@ -39,6 +49,11 @@ contract Forwarder {
         }
     }
 
+    /**
+     * @notice Transfer the token balance held by the forwarder to the wallet.
+     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
+     * @param _token the token to transfer
+     */
     function recoverToken(address _wallet, address _token) external onlyFactory {
         IERC20 tokenContract = IERC20(_token);
         uint256 balance = tokenContract.balanceOf(address(this));

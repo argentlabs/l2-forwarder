@@ -80,8 +80,7 @@ contract("ForwarderFactory", (accounts) => {
     else if (destroy) method = "deployForwardAndDestruct";
     else if (code.length > 2) method = "forward";
     else method = "deployAndForward";
-    const params = [wallet, erc20.address].concat(recover ? [destroy] : []);
-    const txR = await factory[method](...params);
+    const txR = await factory[method](wallet, erc20.address);
     const fwdBalanceAfter = await erc20.balanceOf(fwd);
     const zkBalanceAfter = await erc20.balanceOf(zk.address);
     const walletBalanceAfter = await erc20.balanceOf(wallet);
@@ -122,34 +121,26 @@ contract("ForwarderFactory", (accounts) => {
 
     it("deposits ERC20 (fwd+destroy)", async () => {
       await forwardErc20({ destroy: true });
+      // make sure we can recreate the forwader after its destruction
+      await forwardErc20({ destroy: true });
     });
   });
 
   describe("recovers ERC20", () => {
-    it("recovers ERC20 (successful forwarding; no destruction)", async () => {
+    it("recovers ERC20 (successful forwarding)", async () => {
       await forwardErc20({ recover: true });
     });
 
-    it("recovers ERC20 (successful forwarding; destruction)", async () => {
-      await forwardErc20({ destroy: true, recover: true });
-    });
-
-    it("recovers ERC20 (failed forwarding; no destruction)", async () => {
+    it("recovers ERC20 (failed forwarding)", async () => {
       await zkGov.setTokenPaused(erc20.address, true);
       await forwardErc20({ recover: true });
       await zkGov.setTokenPaused(erc20.address, false);
     });
 
-    it("recovers ERC20 (failed forwarding; no destruction; existing forwarder)", async () => {
+    it("recovers ERC20 (failed forwarding; existing forwarder)", async () => {
       await forwardEth(); // deploy and keep forwarder
       await zkGov.setTokenPaused(erc20.address, true);
       await forwardErc20({ recover: true });
-      await zkGov.setTokenPaused(erc20.address, false);
-    });
-
-    it("recovers ERC20 (failed forwarding; destruction)", async () => {
-      await zkGov.setTokenPaused(erc20.address, true);
-      await forwardErc20({ recover: true, destroy: true });
       await zkGov.setTokenPaused(erc20.address, false);
     });
   });
@@ -169,13 +160,6 @@ contract("ForwarderFactory", (accounts) => {
             "sender should be factory"
           )
         )
-      );
-    });
-
-    it("cannot destroy existing forwarder", async () => {
-      await truffleAssert.reverts(
-        forwardErc20({ recover: true, destroy: true }),
-        "cannot destruct existing forwarder"
       );
     });
   });

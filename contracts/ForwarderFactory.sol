@@ -15,37 +15,59 @@ contract ForwarderFactory {
         initCode = _getInitCode(implementation);
     }
 
+    /**
+     * @notice Returns the address of a forwarder contract.
+     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
+     */
     function getForwarder(address _wallet) public view returns (address payable forwarder) {
         bytes32 salt = keccak256(abi.encodePacked(_wallet));
         bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(abi.encodePacked(initCode))));
         forwarder = address(uint160(uint256(hash)));
     }
 
+    /**
+     * @notice Deploy a forwarder and transfer its token balance to zkSync
+     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
+     * @param _token the token to transfer
+     */
     function deployAndForward(address payable _wallet, address _token) external {
         Forwarder forwarder = _deployForwarder(_wallet);
         forwarder.forward(_wallet, _token);
     }
 
+    /**
+     * @notice Transfer the token balance of an already deployed forwarder to zkSync
+     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
+     * @param _token the token to transfer
+     */
     function forward(address payable _wallet, address _token) external {
         Forwarder forwarder = Forwarder(getForwarder(_wallet));
         forwarder.forward(_wallet, _token);
     }
 
+    /**
+     * @notice Deploy a forwarder, transfer its token balance to zkSync and destruct the forwarder contract
+     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
+     * @param _token the token to transfer
+     */
     function deployForwardAndDestruct(address payable _wallet, address _token) external {
         Forwarder forwarder = _deployForwarder(_wallet);
         forwarder.forwardAndDestruct(_wallet, _token);
     }
 
-    function recoverToken(address payable _wallet, address _token, bool _destructForwarder) external {
+    /**
+     * @notice Transfer the token balance held by the forwarder to the wallet. The transfer is only performed 
+     * if the transfer to zkSync reverts (e.g. because the token is unsupported by zkSync)
+     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
+     * @param _token the token to transfer
+     */
+    function recoverToken(address payable _wallet, address _token) external {
         Forwarder forwarder = Forwarder(getForwarder(_wallet));
         if(!isContract(address(forwarder))) {
             forwarder = _deployForwarder(_wallet);
-        } else {
-            require(!_destructForwarder, "cannot destruct existing forwarder");
         }
-        bytes4 method = _destructForwarder ? forwarder.forwardAndDestruct.selector : forwarder.forward.selector;
         // attempt forwarding
-        (bool success,) = address(forwarder).call(abi.encodeWithSelector(method, _wallet, _token));
+        (bool success,) = address(forwarder).call(abi.encodeWithSelector(forwarder.forward.selector, _wallet, _token));
         // only recover token to wallet if forwarding failed (e.g. unsupported token; token deposit paused; transfer failed)
         if(!success) {
             forwarder.recoverToken(_wallet, _token);
