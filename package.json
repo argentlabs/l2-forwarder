@@ -26,6 +26,6 @@
     "truffle": "^5.1.63",
     "truffle-assertions": "^0.9.2",
     "truffle-source-verify": "^0.0.6",
-    "zksync-root": "github:matter-labs/zksync#contracts-4.3"
+    "zksync-root": "github:matter-labs/zksync#contracts-5"
   }
 }
