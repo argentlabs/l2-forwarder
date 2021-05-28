@@ -59,7 +59,7 @@ contract Forwarder {
      */
     function recoverERC721Token(address _wallet, address _token, uint256 _id) external onlyFactory {
         IERC721 tokenContract = IERC721(_token);
-        tokenContract.safeTransferFrom(address(this), _wallet, _id);
+        tokenContract.transferFrom(address(this), _wallet, _id);
     }
 
     receive() external payable {}
