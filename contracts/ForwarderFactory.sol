@@ -8,9 +8,12 @@ import "./IZkSync.sol";
 contract ForwarderFactory {
 
     address public immutable implementation;
+    bytes32 public immutable initCodeHash;
 
     constructor(IZkSync _zkSync) {
-        implementation = address(new Forwarder(_zkSync));
+        address impl = address(new Forwarder(_zkSync));
+        implementation = impl;
+        initCodeHash = keccak256(abi.encodePacked(_initCode(bytes20(impl))));
     }
 
     /**
@@ -19,7 +22,7 @@ contract ForwarderFactory {
      */
     function getForwarder(address _wallet) public view returns (address payable forwarder) {
         bytes32 salt = keccak256(abi.encodePacked(_wallet));
-        bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(abi.encodePacked(_initCode()))));
+        bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, initCodeHash));
         forwarder = address(uint160(uint256(hash)));
     }
 
@@ -76,7 +79,7 @@ contract ForwarderFactory {
         forwarder = Forwarder(getForwarder(_wallet));
         if(!isContract(address(forwarder))) {
             // load the init code to memory
-            bytes memory mInitCode = _initCode();
+            bytes memory mInitCode = _initCode(bytes20(implementation));
             // compute the salt from the destination
             bytes32 salt = keccak256(abi.encodePacked(_wallet));
             // deploy
@@ -87,12 +90,11 @@ contract ForwarderFactory {
         }
     }
 
-    function _initCode() internal view returns (bytes memory code) {
-        bytes20 targetBytes = bytes20(implementation);
+    function _initCode(bytes20 _target) internal view returns (bytes memory code) {
         code = new bytes(55);
         assembly {
             mstore(add(code, 0x20), 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
-            mstore(add(code, add(0x20,0x14)), targetBytes)
+            mstore(add(code, add(0x20,0x14)), _target)
             mstore(add(code, add(0x20,0x28)), 0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000)
         }
     }
