@@ -7,12 +7,10 @@ import "./IZkSync.sol";
 
 contract ForwarderFactory {
 
-    address public implementation;
-    bytes public initCode;
+    address public immutable implementation;
 
     constructor(IZkSync _zkSync) {
         implementation = address(new Forwarder(_zkSync));
-        initCode = _getInitCode(implementation);
     }
 
     /**
@@ -21,23 +19,25 @@ contract ForwarderFactory {
      */
     function getForwarder(address _wallet) public view returns (address payable forwarder) {
         bytes32 salt = keccak256(abi.encodePacked(_wallet));
-        bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(abi.encodePacked(initCode))));
+        bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), address(this), salt, keccak256(abi.encodePacked(_initCode()))));
         forwarder = address(uint160(uint256(hash)));
     }
 
     /**
-     * @notice Deploy a forwarder and transfer its token balance to zkSync
-     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
+     * @notice Transfers the token balance of a forwarder to zkSync.
+     * The forwarder is deployed if needed.
+     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder.
      * @param _token the token to transfer
      */
-    function deployAndForward(address payable _wallet, address _token) external {
+    function safeForward(address payable _wallet, address _token) external {
         Forwarder forwarder = _deployForwarder(_wallet);
         forwarder.forward(_wallet, _token);
     }
 
     /**
-     * @notice Transfer the token balance of an already deployed forwarder to zkSync
-     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
+     * @notice Transfers the token balance of an already deployed forwarder to zkSync.
+     * The method fails if the forwarder is not deployed.
+     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder.
      * @param _token the token to transfer
      */
     function forward(address payable _wallet, address _token) external {
@@ -46,49 +46,49 @@ contract ForwarderFactory {
     }
 
     /**
-     * @notice Deploy a forwarder, transfer its token balance to zkSync and destruct the forwarder contract
-     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
-     * @param _token the token to transfer
+     * @notice Transfer the ERC20 token balance held by the forwarder to the wallet.
+     * Must be called by the wallet itself. The forwarder is deployed if needed.
+     * @param _token the ERC20 token to transfer
      */
-    function deployForwardAndDestruct(address payable _wallet, address _token) external {
-        Forwarder forwarder = _deployForwarder(_wallet);
-        forwarder.forwardAndDestruct(_wallet, _token);
+    function recoverERC20Token(address _token) external {
+        address wallet = msg.sender;
+        Forwarder forwarder = _deployForwarder(wallet);
+        forwarder.recoverERC20Token(wallet, _token);
     }
 
     /**
-     * @notice Transfer the token balance held by the forwarder to the wallet. The transfer is only performed 
-     * if the transfer to zkSync reverts (e.g. because the token is unsupported by zkSync)
-     * @param _wallet the wallet controlling the zkSync assets deposited by the forwarder
-     * @param _token the token to transfer
+     * @notice Transfer an ERC721 token held by the forwarder to the wallet.
+     * Must be called by the wallet itself. The forwarder is deployed if needed.
+     * @param _token the ERC721 token contract
+     * @param _id the ERC721 token to transfer
      */
-    function recoverToken(address payable _wallet, address _token) external {
-        Forwarder forwarder = Forwarder(getForwarder(_wallet));
-        if(!isContract(address(forwarder))) {
-            forwarder = _deployForwarder(_wallet);
-        }
-        // attempt forwarding
-        (bool success,) = address(forwarder).call(abi.encodeWithSelector(forwarder.forward.selector, _wallet, _token));
-        // only recover token to wallet if forwarding failed (e.g. unsupported token; token deposit paused; transfer failed)
-        if(!success) {
-            forwarder.recoverToken(_wallet, _token);
-        }
+    function recoverERC721Token(address _token, uint256 _id) external {
+        address wallet = msg.sender;
+        Forwarder forwarder = _deployForwarder(wallet);
+        forwarder.recoverERC721Token(wallet, _token, _id);
     }
 
+    /**
+     * @notice Deploys the forwarder of a wallet if needed.
+     * @param _wallet the wallet associated to the forwarder.
+     */
     function _deployForwarder(address _wallet) internal returns (Forwarder forwarder) {
-        // load the init code to memory
-        bytes memory mInitCode = initCode;
-
-        // compute the salt from the destination
-        bytes32 salt = keccak256(abi.encodePacked(_wallet));
-
-        assembly {
-            forwarder := create2(0, add(mInitCode, 0x20), mload(mInitCode), salt)
-            if iszero(extcodesize(forwarder)) { revert(0, 0) }
+        forwarder = Forwarder(getForwarder(_wallet));
+        if(!isContract(address(forwarder))) {
+            // load the init code to memory
+            bytes memory mInitCode = _initCode();
+            // compute the salt from the destination
+            bytes32 salt = keccak256(abi.encodePacked(_wallet));
+            // deploy
+            assembly {
+                forwarder := create2(0, add(mInitCode, 0x20), mload(mInitCode), salt)
+                if iszero(extcodesize(forwarder)) { revert(0, 0) }
+            }
         }
     }
 
-    function _getInitCode(address _implementation) internal pure returns (bytes memory code) {
-        bytes20 targetBytes = bytes20(_implementation);
+    function _initCode() internal view returns (bytes memory code) {
+        bytes20 targetBytes = bytes20(implementation);
         code = new bytes(55);
         assembly {
             mstore(add(code, 0x20), 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)

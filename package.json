@@ -5,9 +5,12 @@
   "scripts": {
     "compile": "npx truffle compile",
     "coverage": "npx truffle run coverage",
+    "deploy:test": "AWS_PROFILE=argent-test AWS_SDK_LOAD_CONFIG=1 npx truffle migrate --network test",
+    "deploy:staging": "npx truffle migrate --network staging",
+    "deploy:prod": "npx truffle migrate --network prod",
     "deploy:rinkeby": "npx truffle migrate --network rinkeby",
-    "deploy:ropsten": "npx truffle migrate --network ropsten",
     "deploy:kovan": "npx truffle migrate --network kovan",
+    "verify:test": "npx truffle run verify --network test",
     "ganache": "npx ganache-cli --gasLimit=10000000 -e 10000 -d ganache-cli 1337",
     "test": "npx truffle test"
   },
@@ -17,15 +20,18 @@
   },
   "devDependencies": {
     "@openzeppelin/contracts": "^3.3.0",
-    "@truffle/hdwallet-provider": "^1.2.0",
+    "@truffle/hdwallet-provider": "^1.4.0",
     "bn-chai": "^1.0.1",
-    "chai": "^4.2.0",
+    "chai": "^4.3.4",
     "delay": "^5.0.0",
-    "dotenv": "^8.2.0",
-    "solidity-coverage": "^0.7.14",
-    "truffle": "^5.1.63",
+    "dotenv": "^8.6.0",
+    "solidity-coverage": "^0.7.16",
+    "truffle": "^5.3.7",
     "truffle-assertions": "^0.9.2",
-    "truffle-source-verify": "^0.0.6",
+    "truffle-plugin-verify": "^0.5.8",
     "zksync-root": "github:matter-labs/zksync#contracts-5"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.913.0"
   }
 }

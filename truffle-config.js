@@ -1,5 +1,9 @@
 require("dotenv").config();
 const HDWalletProvider = require("@truffle/hdwallet-provider");
+const AWSWalletProvider = require("./utils/aws-wallet-provider.js");
+
+const _gasPrice = process.env.DEPLOYER_GAS_PRICE || 20000000000;
+const _gasLimit = 8000000;
 
 module.exports = {
   networks: {
@@ -7,6 +11,42 @@ module.exports = {
       host: "127.0.0.1", // Localhost (default: none)
       port: 8545, // Standard Ethereum port (default: none)
       network_id: "*", // Any network (default: none)
+    },
+
+    test: {
+      provider: () => new AWSWalletProvider(
+        `https://ropsten.infura.io/v3/${process.env.INFURA_KEY}`,
+        "argent-smartcontracts-test",
+        "backend/deploy.key"
+      ),
+      network_id: 3,
+      gas: _gasLimit,
+      gasPrice: _gasPrice,
+      skipDryRun: true,
+    },
+
+    staging: {
+      provider: () => new AWSWalletProvider(
+        `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+        "argent-smartcontracts-staging",
+        "backend/deploy.key"
+      ),
+      network_id: 1,
+      gas: _gasLimit,
+      gasPrice: _gasPrice,
+      skipDryRun: true,
+    },
+
+    prod: {
+      provider: () => new AWSWalletProvider(
+        `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+        "argent-smartcontracts-prod",
+        "backend/deploy.key"
+      ),
+      network_id: 1,
+      gas: _gasLimit,
+      gasPrice: _gasPrice,
+      skipDryRun: true,
     },
 
     rinkeby: {
@@ -20,24 +60,8 @@ module.exports = {
           numberOfAddresses: 4,
         }),
       network_id: 4,
-      gas: 8000000, // Gas limit
-      gasPrice: 1000000000, // 1 GWei
-      skipDryRun: true,
-    },
-
-    ropsten: {
-      provider: () =>
-        new HDWalletProvider({
-          mnemonic: {
-            phrase: process.env.DEPLOYER_MNEMONIC,
-          },
-          providerOrUrl: `wss://ropsten.infura.io/ws/v3/${process.env.INFURA_KEY}`,
-          addressIndex: 0,
-          numberOfAddresses: 4,
-        }),
-      network_id: 3,
-      gas: 8000000, // Gas limit
-      gasPrice: 1000000000, // 1 GWei
+      gas: _gasLimit,
+      gasPrice: _gasPrice,
       skipDryRun: true,
     },
 
@@ -52,8 +76,8 @@ module.exports = {
           numberOfAddresses: 4,
         }),
       network_id: 42,
-      gas: 8000000, // Gas limit
-      gasPrice: 1000000000, // 1 GWei
+      gas: _gasLimit,
+      gasPrice: _gasPrice,
       skipDryRun: true,
     },
   },
@@ -78,7 +102,7 @@ module.exports = {
     },
   },
 
-  plugins: ["solidity-coverage", "truffle-source-verify"],
+  plugins: ["solidity-coverage", "truffle-plugin-verify"],
 
   api_keys: {
     etherscan: process.env.ETHERSCAN_KEY,
