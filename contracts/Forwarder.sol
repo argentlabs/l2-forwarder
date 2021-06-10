@@ -13,6 +13,8 @@ contract Forwarder {
     address immutable internal forwarderFactory;
     address constant internal ETH_TOKEN = address(0);
 
+    event Received(uint value);
+
     constructor(IZkSync _zkSync) {
         zkSync = _zkSync;
         forwarderFactory = msg.sender;
@@ -62,5 +64,7 @@ contract Forwarder {
         tokenContract.transferFrom(address(this), _wallet, _id);
     }
 
-    receive() external payable {}
+    receive() external payable {
+        emit Received(msg.value);
+    }
 }
