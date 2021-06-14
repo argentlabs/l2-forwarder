@@ -54,7 +54,15 @@ contract("ForwarderFactory", (accounts) => {
   async function forwardEth({ safe = false, gas = true } = {}) {
     const fwd = await factory.getForwarder(wallet);
     const value = web3.utils.toWei("0.1");
-    await web3.eth.sendTransaction({ to: fwd, value, from: accounts[0] });
+    const { logs } = await web3.eth.sendTransaction({
+      to: fwd,
+      value,
+      from: accounts[0],
+    });
+    if ((await web3.eth.getCode(fwd)) !== "0x") {
+      assert.equal(logs[0].topics[0], web3.utils.sha3("Received(uint256)"));
+    }
+
     const zkBalanceBefore = new BN(await web3.eth.getBalance(zk.address));
     const fwdBalanceBefore = new BN(await web3.eth.getBalance(fwd));
     let method;
@@ -107,7 +115,9 @@ contract("ForwarderFactory", (accounts) => {
     await erc721.mint(fwd, id);
     const ownerBefore = await erc721.ownerOf(id);
     assert.equal(ownerBefore, fwd);
-    const txR = await factory["recoverERC721Token"](erc721.address, id, { from: w });
+    const txR = await factory["recoverERC721Token"](erc721.address, id, {
+      from: w,
+    });
     const ownerAfter = await erc721.ownerOf(id);
     assert.equal(ownerAfter, w);
     console.log(`        recoverERC721Token gas:`, txR.receipt.gasUsed);
@@ -128,7 +138,7 @@ contract("ForwarderFactory", (accounts) => {
     it("should forward ERC20", async () => {
       // inits the ERC20 contract
       await forwardErc20({ safe: true, gas: false });
-      // calling after init is cheaper 
+      // calling after init is cheaper
       wallet = getRandomAddress();
       // deploy new forwarder and forward token
       await forwardErc20({ safe: true });
@@ -147,19 +157,28 @@ contract("ForwarderFactory", (accounts) => {
     it("should recover an ERC721", async () => {
       await recoverErc721();
     });
-  })
+  });
 
   describe("Reverts", () => {
     let fwd;
     beforeEach(async () => {
-      await forwardEth({ safe: true, gas: false} ); // deploy and keep forwarder
+      await forwardEth({ safe: true, gas: false }); // deploy and keep forwarder
       fwd = await Forwarder.at(await factory.getForwarder(wallet));
     });
 
     it("cannot call the forwarder directly", async () => {
-      truffleAssert.reverts(fwd["forward"](wallet, erc20.address), "sender should be factory");
-      truffleAssert.reverts(fwd["recoverERC20Token"](wallet, erc20.address), "sender should be factory");
-      truffleAssert.reverts(fwd["recoverERC721Token"](wallet, erc721.address, 5), "sender should be factory");
+      truffleAssert.reverts(
+        fwd["forward"](wallet, erc20.address),
+        "sender should be factory"
+      );
+      truffleAssert.reverts(
+        fwd["recoverERC20Token"](wallet, erc20.address),
+        "sender should be factory"
+      );
+      truffleAssert.reverts(
+        fwd["recoverERC721Token"](wallet, erc721.address, 5),
+        "sender should be factory"
+      );
     });
   });
 });
